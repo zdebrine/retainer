@@ -6,20 +6,28 @@ import { fontFamily, type, useTheme } from '@/theme';
 export type TextProps = RNTextProps & {
   variant?: TypeVariant;
   tone?: ColorToken;
+  /** Overrides the variant's weight. Always set weight here, never via `fontWeight`: custom fonts need a family per weight. */
+  weight?: 400 | 500 | 600 | 700;
 };
 
 /** Text in one of the eight design-system styles. `micro` is the only uppercase style. */
-export function Text({ variant = 'body', tone = 'ink', style, children, ...rest }: TextProps) {
+export function Text({
+  variant = 'body',
+  tone = 'ink',
+  weight,
+  style,
+  children,
+  ...rest
+}: TextProps) {
   const { colors } = useTheme();
   const t = type[variant];
-  const weight = t.fontWeight as 400 | 500 | 600 | 700;
   return (
     <RNText
       {...rest}
       style={[
         {
           color: colors[tone],
-          fontFamily: fontFamily(t.family, weight),
+          fontFamily: fontFamily(t.family, weight ?? (t.fontWeight as 400 | 500 | 600 | 700)),
           fontSize: t.fontSize,
           lineHeight: t.lineHeight,
           letterSpacing: t.letterSpacing,

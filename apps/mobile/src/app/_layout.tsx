@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
+import { AuthProvider } from '@/features/auth/auth-provider';
+import { BillingProvider } from '@/features/billing/billing-provider';
 import { ThemeProvider, useTheme } from '@/theme';
 import { webFonts } from '@/theme/web-fonts';
 
@@ -36,7 +38,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootStack />
+      <AuthProvider>
+        <BillingProvider>
+          <RootStack />
+        </BillingProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

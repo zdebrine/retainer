@@ -27,6 +27,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - name: Edge Function unit tests
+        run: pnpm test:functions
       - name: Bundle iOS and Android JS
         working-directory: apps/mobile
         run: npx expo export --platform ios --platform android --output-dir dist

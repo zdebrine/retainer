@@ -12,7 +12,8 @@
     "lint": "pnpm -r --parallel run lint",
     "test": "pnpm -r run test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:functions": "node --test 'supabase/functions/**/*.test.ts'"
   },
   "devDependencies": {
     "prettier": "^3.9.9"

@@ -1,10 +1,13 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Node } from '@/components/node';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
+import { useAuth } from '@/features/auth/auth-provider';
+import { useBilling } from '@/features/billing/billing-provider';
+import { nextStep } from '@/features/flow';
 import { space, useTheme } from '@/theme';
 
 // Wireframe 01 · Welcome. Node positions are the wireframe's, on a 390pt-wide frame.
@@ -23,6 +26,20 @@ const dust = [
 
 export default function Welcome() {
   const { colors } = useTheme();
+  const auth = useAuth();
+  const billing = useBilling();
+
+  // Signed-in users go straight to where they left off.
+  if (auth.ready && auth.session) {
+    if (!billing.ready) return <Screen />;
+    const step = nextStep({
+      signedIn: true,
+      entitled: billing.entitled,
+      onboarded: !!auth.profile?.onboarded_at,
+    });
+    return <Redirect href={step} />;
+  }
+
   return (
     <Screen>
       <View style={styles.field}>
@@ -63,14 +80,14 @@ export default function Welcome() {
           Retainer reads your social accounts and shows you posts from the people on your list. Ads,
           suggestions, strangers and trends never reach you.
         </Text>
-        {/* Onboarding screens arrive in M1; until then this opens the design check. */}
         <Button
           label="Get started"
           kind="fill"
           block
           style={styles.cta}
-          onPress={() => router.push('/dev/tokens')}
+          onPress={() => router.push('/why')}
         />
+        <Button label="I have an account" kind="quiet" onPress={() => router.push('/sign-in')} />
       </View>
     </Screen>
   );
@@ -79,7 +96,7 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   field: { flex: 1, alignItems: 'center' },
   frame: { width: 390, height: 360 },
-  bottom: { paddingHorizontal: space[5], paddingBottom: space[6], gap: space[4] },
+  bottom: { paddingHorizontal: space[5], paddingBottom: space[4], gap: space[4] },
   // Wireframe sets this headline at 40/44, a step below `display`.
   headline: { fontSize: 40, lineHeight: 44, letterSpacing: -1.2 },
   cta: { marginTop: space[4] },

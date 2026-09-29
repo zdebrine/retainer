@@ -17,7 +17,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ilxxsqpevooclmpazydx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VSjVbUlcfT40xaqxvm9hjw_abD-A5-S"
+      }
     },
     "production": {
       "channel": "production",
