@@ -1,6 +1,6 @@
 # Retainer People: technical specification (v1)
 
-Status: draft for review · 2026-09-29
+Status: draft v2, decisions from review applied · 2026-09-29
 Source design: Claude Design project "Retainer People" (`design/Retainer People.dc.html`), Retainer design system (`design/_ds/…`), and the earlier anti-feed spec it builds on.
 
 ---
@@ -19,6 +19,14 @@ Decisions already made:
 | Scope | People is a standalone v1. Retainer Space (the money and attention clusters) is out of scope, but the schema leaves room for it. |
 | Billing | App Store and Play subscriptions through RevenueCat |
 | AI | Choice of Claude, ChatGPT, Gemini or on-phone, as in wireframe screen 06b. The server calls the cloud providers through a provider abstraction; there are no provider keys on the device. |
+| Launch platforms | Phase 1 connectors only. Instagram, TikTok and Facebook come after launch. |
+| Accounts | An explicit sign-in screen (Apple, Google, email code) before Subscribe |
+| Pricing | $4.99/mo, **no free trial** |
+| Notifications | **No push notifications** |
+| Schedule | Briefings at **6:00 am and 6:00 pm** local time |
+| Model cost | Evaluate `claude-haiku-4-5` against `claude-opus-5-5` before launch (§8.5) |
+| Market | **US only** at launch |
+| Keep | Stores the **full post**: text, metadata and media copies |
 
 ---
 
@@ -26,22 +34,23 @@ Decisions already made:
 
 | # | Screen | What it needs technically |
 | --- | --- | --- |
-| 01 | Welcome | Static. Creates an anonymous Supabase session on first launch. |
+| 01 | Welcome | Static. "Get started" goes to onboarding, and a quiet "I have an account" goes to sign in. |
 | 01b | What it is for | Static. |
 | 02 | Why we charge | Static. The copy states the AI providers, which must match the ones we ship. |
-| 03 | Subscribe | RevenueCat offering, purchase, restore. Server entitlement arrives by webhook. |
-| 04 | Connect platforms | A connector list driven by server config (so platforms can be switched on and off remotely). OAuth or app-password flows per connector. Read-only scopes. |
+| 02b | **Sign in (new, not yet designed)** | Sign in with Apple, Sign in with Google, or an email one-time code. Creates the Supabase user **before** purchase, so the subscription is tied to an account from the start. |
+| 03 | Subscribe | RevenueCat offering, purchase, restore. No trial. Server entitlement arrives by webhook. |
+| 04 | Connect platforms | A connector list driven by server config (so platforms can be switched on and off remotely). OAuth or app-password flows per connector. Read-only scopes. At launch it shows Bluesky, YouTube, Mastodon and RSS, plus Threads and X if cleared. Instagram, TikTok and Facebook show as "Coming later", and Snapchat is removed. |
 | 05 | Accounts per platform | Pulls the user's following list per connector, then a searchable list with toggles plus "type a @handle". Accounts are grouped into **people** (see §9). |
 | 06 | How AI is used | Static, but the times shown come from the user's schedule. |
 | 06b | Choose AI agent | Stores the provider choice. The "What the agent sees" text is generated from the choice. On-phone is shown only on capable devices (§8.3). |
-| 07 | Daily limit | Limit of 10, 20, 30 or 45 min. Window: once a day, twice a day, or whenever I open it. Produces a readable rule summary. |
+| 07 | Daily limit | Limit of 10, 20, 30 or 45 min. Window: once a day (6:00 pm), twice a day (6:00 am · 6:00 pm), or whenever I open it. Produces a readable rule summary. |
 | 2a | Briefing ready | Counts per briefing (read, kept, not on list, ads/promoted) and avatars of the people included. |
 | 2b | Reading | A paged, one-post-at-a-time reader with a segmented progress bar, a "Why this" drawer, Keep, Open in {app}, Back/Next, tap-to-play video and no autoplay. |
 | 2c | Adjust | Per-person rules: only posts they wrote, mute a word (from this person or everyone), skip a platform for this person, remove them. Rules take effect from the next briefing. |
 | 2d | Closed | The hard end. Pull down to see the schedule, with a countdown to the next briefing. |
 | — | Settings | Not drawn yet. Needs: the decision log per briefing, the Kept archive, AI choice, schedule, connected platforms, subscription, and data export and delete. |
 
-Out of scope for v1: Retainer Space graph and three.js scene, desktop, web, any posting or replying, and push notifications (see §19 Q4).
+Out of scope for v1: the Retainer Space graph and three.js scene, desktop, web, any posting or replying, push notifications of any kind, the Phase 2 on-device reader, and non-US storefronts.
 
 ---
 
@@ -53,7 +62,7 @@ Out of scope for v1: Retainer Space graph and three.js scene, desktop, web, any 
 4. **Metrics stripped at ingest.** Like, share, view and reply counts, and "suggested" or "promoted" fields, are dropped before a post is stored. They never exist in our database.
 5. **Read-only.** Every connector asks for the narrowest read scope. No code path posts, likes, follows or messages.
 6. **Explainability.** Every kept or dropped post has a stored reason, shown in "Why this" and in the Settings decision log.
-7. **Nothing pulls the user back.** No streaks, badges or re-engagement pushes. Analytics must not optimise for time in app (§14).
+7. **Nothing pulls the user back.** No streaks, badges or push notifications. `expo-notifications` is not installed, and the app never asks for notification permission. Analytics must not optimise for time in app (§14).
 
 ---
 
@@ -136,11 +145,12 @@ Offline: the current briefing and its media URLs are cached in SQLite, so readin
 ## 5. Backend (Supabase)
 
 * **Postgres 17** with RLS on every user table (`user_id = auth.uid()`).
-* **Auth.** Anonymous sign-in at first launch, so onboarding needs no signup screen. At Subscribe we offer "Sign in with Apple" or Google to link the account, which enables restore on a new device. The RevenueCat `appUserID` is the Supabase user id.
+* **Auth.** There is an explicit sign-in screen (02b) before Subscribe, with Sign in with Apple (required by App Store rules when other social logins are offered), Google, and an email one-time code. There are no passwords. The RevenueCat `appUserID` is the Supabase user id, set at `Purchases.logIn` right after sign-in, so purchases follow the account across devices.
+* **Region.** Supabase projects in a US region (`us-east-1`).
 * **Edge Functions** (Deno, TypeScript). Connectors, classify, assemble, webhooks, export and delete. Shared `zod` schemas live in `packages/shared`.
 * **Cron + Queues.** `pg_cron` runs every 5 minutes and enqueues pass jobs into `pgmq` for users whose next window opens within the lead time (§7). Workers are Edge Functions that pull from the queue. Retries use exponential backoff and a dead-letter queue.
 * **Vault.** Platform OAuth tokens and app passwords are encrypted at rest. Only service-role functions can decrypt them.
-* **Storage.** Not used for post media in v1: media is loaded from the platform CDN by URL. It is used only for data exports.
+* **Storage.** Briefing media is loaded from the platform CDN by URL and never copied. **Kept posts** are the exception: their media is copied into a private bucket (`kept/{user_id}/…`, served through signed URLs), because CDN links expire and posts get deleted. Storage also holds data exports.
 * **Environments.** `dev`, `staging`, `prod` as separate projects, with Supabase branching for PR previews. Migrations go through the Supabase CLI in Git.
 
 ---
@@ -172,7 +182,9 @@ interface Connector {
 | **Facebook** | 2 | On-device reader | Same approach. The highest breakage risk. |
 | **Snapchat** | Not planned | — | Stories are private and ephemeral, with no reliable way to read them. Remove it from screen 04. |
 
-### 6.1 On-device reader (Phase 2)
+**Launch set:** Bluesky, YouTube, Mastodon and RSS are committed. Threads and X ship only if they pass their gates (Meta approval, and a per-user X cost that fits §16). Otherwise they follow in a point release.
+
+### 6.1 On-device reader (Phase 2, after launch, not in v1)
 
 * The user logs in to each platform **inside a WebView the app hosts**. Cookies stay in the device's WebView cookie store. Credentials never reach our servers.
 * At pass time the reader loads **each chosen person's profile page**, not the home feed. This avoids ads and suggestions by design and keeps the "only your people" promise without guesswork. An injected script turns the DOM or embedded JSON into `NormalisedPost` and uploads it to `ingest-device`.
@@ -186,7 +198,7 @@ interface Connector {
 
 A **pass** collects and classifies posts for one user ahead of one window.
 
-1. **Schedule.** The window times come from the user's settings in their IANA time zone. Cron enqueues a pass `lead = 60 min` before each window. For "Whenever I open it", passes run every 4 hours and on app open (rate-limited).
+1. **Schedule.** Windows open at a fixed **6:00 am and 6:00 pm** in the user's IANA time zone ("Once a day" means 6:00 pm only). The times aren't user-configurable in v1. Cron enqueues a pass `lead = 60 min` before each window, so passes start at 5:00 am and 5:00 pm local. For "Whenever I open it", passes run every 4 hours and on app open (rate-limited). Because every user's windows fall at the same local hour, load arrives in waves, one per US time zone. Size the queue workers for the Eastern-time wave.
 2. **Fetch.** One queue job per (user, connection). The job calls `fetchSince(cursor)` for each chosen account, with a per-connector concurrency limit and platform rate-limit handling.
 3. **Normalise and strip.** The connector drops every metric and promo field and stores a `NormalisedPost`: author, platform, text, media (URLs, type, alt, duration), permalink, `posted_at`, `is_repost`, `is_reply`, and `is_sponsored` where the platform exposes it.
 4. **Deterministic rules first**, which are cheap and explainable:
@@ -213,7 +225,8 @@ It classifies and annotates posts from people the user already chose. It never r
 
 * A provider abstraction (`classifyBatch(posts, rules) → Decision[]`) with adapters for Anthropic (`@anthropic-ai/sdk`), OpenAI (`openai`) and Google (`@google/genai`). The keys live only in Supabase secrets.
 * **Anthropic adapter:** the default model is `claude-opus-5-5` at `effort: "low"`, using structured outputs (`output_config.format` with the Decision JSON schema), prompt caching on the fixed system prompt and rules block, and the **Message Batches API** (50% cost) for scheduled passes. That works because passes start 60 min ahead. A synchronous fallback handles batch items that aren't finished 10 min before the window. Refusal handling uses server-side `fallbacks`.
-* A cheaper model, for example `claude-haiku-4-5` for classification, is a **cost lever for you to decide on** after we measure its quality on the eval set in §8.5. See §16 and §19 Q6.
+* **Haiku test (decided).** In M3 we run `claude-haiku-4-5` and `claude-opus-5-5` (at low effort) against the same eval set (§8.5), and compare quality, cost per 1k posts and batch turnaround. Haiku 4.5 uses `budget_tokens` thinking or none (not adaptive thinking or effort), so its adapter config differs. Haiku becomes the Claude default if it meets the eval gate; otherwise we stay on Opus 5.5 and report the cost difference. The result and the decision are recorded in `docs/decisions/`.
+* Requests set `inference_geo: "us"` (US only at launch).
 * **Output contract:**
 ```json
 { "post_id": "…", "keep": true,
@@ -239,6 +252,14 @@ Post text is untrusted. It goes inside a delimited data block, the system prompt
 
 A labelled set of about 1,000 posts (sponsored, reposts, duplicates, mute-topic edge cases, non-English). CI runs it on prompt or model changes and gates on precision and recall for `sponsored` and `muted_topic`. The same set is used to compare Opus, Haiku, GPT and Gemini, both for cost decisions and to keep behaviour consistent across providers.
 
+Proposed gate for choosing a model:
+* **False drops** (a post from a listed person wrongly dropped) ≤ 0.5%. This is the trust metric and it matters most.
+* `sponsored` recall ≥ 90%.
+* `muted_topic` F1 ≥ 0.85.
+* Schema-valid output 100%.
+
+A model that passes the gate at a lower cost per post wins.
+
 ---
 
 ## 9. Data model (core tables)
@@ -261,13 +282,16 @@ briefings(id, user_id, window_start, opens_at, closes_at, status, stats jsonb)
 briefing_items(briefing_id, position, post_id, why)
 decision_log(id, user_id, briefing_id, post_id, keep, reason_code, source /* rule|llm|device */,
              rule_id null, model null, created_at)
-kept_posts(user_id, post_id, kept_at)
+kept_posts(id, user_id, kept_at, platform, permalink, author_name, author_handle,
+           posted_at, text, media jsonb /* storage paths + type + alt */, source_post_id null)
+           -- full snapshot, independent of posts (which expire)
 reading_sessions(id, user_id, briefing_id, started_at, ended_at, seconds)
 entitlements(user_id, product_id, status, expires_at, rc_event_id)
 ```
 
 * **People vs accounts.** Screen 05 is per platform, but the briefing and Adjust screens are per *person*. When onboarding finishes we suggest groupings (same display name, cross-links in bios) and let the user confirm them ("Dana on Instagram, Threads and X"). Accounts that aren't grouped become a person on their own.
-* **Retention.** `posts` that aren't kept expire 7 days after their briefing closes. Kept posts are stored until the user unkeeps them. The decision log is kept for 30 days.
+* **Retention.** `posts` expire 7 days after their briefing closes. Keep copies the full post (text, metadata, and media into Storage) into `kept_posts` at the moment it is kept. The copy lasts until the user unkeeps it or deletes their account, even if the author deletes the original. The decision log is kept for 30 days.
+* **Kept media limits.** Photos are stored as full resolution capped at 2048 px. Videos are capped at 100 MB each and at a per-user total of 2 GB (see §16). Over the limit, we keep a link only and show "video too large to save".
 * **Future Space clusters** would add `money_*` and `attention_*` tables. `people` is already a first-class entity.
 
 ---
@@ -294,7 +318,8 @@ Supabase tables are used directly under RLS for simple CRUD (rules, people, sett
 * RevenueCat, with one product: `retainer_monthly_499` (auto-renewing monthly).
 * The paywall is shown before connecting (screen 03) and matches the "price explained before it is asked for" principle.
 * Entitlement is checked **server-side** before a pass runs. A lapsed user keeps their Kept archive and data, but passes stop.
-* Trial or no trial: see §19 Q3.
+* **No free trial.** There's no introductory offer on the product, and none in the RevenueCat offering. Refunds go through the platform stores' own processes.
+* **US storefront only** at launch (App Store Connect and Play Console availability set to United States).
 * App Store review: the paywall must show the price, the period, a restore link, and terms and privacy links. Screen 03 needs terms and privacy links added.
 
 ---
@@ -303,7 +328,8 @@ Supabase tables are used directly under RLS for simple CRUD (rules, people, sett
 
 * The client runs a visible-time timer (foreground only) and sends a heartbeat every 15 s. The server holds the authoritative `seconds_used_today`.
 * When the limit or the last post is reached, the client routes to **Closed** and clears the briefing from memory. `GET /briefing/current` returns `closed_until` until the next window, so reinstalling or changing the device clock doesn't reopen it.
-* Pull-down on Closed shows the schedule, computed from `profiles.windows` and `tz`.
+* Pull-down on Closed shows the schedule, computed from the fixed 6:00 am and 6:00 pm windows and `tz`. With no push notifications, this screen and the store listing are the only places the schedule is shown.
+* **Daily reset** at 12:00 am local time for the limit. Both windows share one daily limit. Assumption: this applies to "Twice a day" too; confirm.
 * "Whenever I open it" mode: the briefing is a rolling queue, and the limit is the only lock.
 
 ---
@@ -316,6 +342,8 @@ Supabase tables are used directly under RLS for simple CRUD (rules, people, sett
 * No ads SDKs and no IDFA. The analytics rules are in §14.
 * Account deletion is in-app (an App Store requirement). It hard-deletes rows and revokes platform tokens within 30 days.
 * The Phase 2 WebView uses its own cookie store per platform, and the user can wipe it from Settings.
+* **US only.** The launch compliance scope is CCPA/CPRA and state privacy laws, plus COPPA: the app is 13+ with an age gate at sign-in. All data, including backups, stays in US regions, and LLM calls are pinned to US inference where the provider supports it. GDPR and EU residency are deferred until an EU launch.
+* **Kept posts** are copies of other people's content in the user's private archive. Only the user can see them (RLS plus private storage). No sharing features. The Terms of Service must cover personal archiving.
 
 ---
 
@@ -350,8 +378,9 @@ Assumptions: 15 people followed, about 25 posts per pass reach the LLM after the
 | --- | --- |
 | Store fee (15% small-business / after year 1; 30% otherwise) | $0.75 – $1.50 |
 | LLM, `claude-opus-5-5` low effort, batch: ~0.45M in, ~0.06M out, plus thinking overhead | ≈ $1.00 – $1.80 |
-| LLM, `claude-haiku-4-5`, batch (if chosen after eval) | ≈ $0.30 – $0.50 |
+| LLM, `claude-haiku-4-5`, batch (being tested, §8.2) | ≈ $0.30 – $0.50 |
 | Supabase (Pro plan amortised plus compute) | ≈ $0.05 – $0.15 at 10k users |
+| Kept-post storage (Supabase Storage + egress) | ≈ $0.01 typical; roughly $0.05–0.10 for a user at the 2 GB cap (check current Supabase pricing) |
 | RevenueCat (above its free tier) | ≈ 1% of revenue |
 | X API, if enabled | **unknown, possibly the largest line; measure first** |
 
@@ -366,13 +395,13 @@ Takeaways:
 
 | Milestone | Contents | Exit criteria |
 | --- | --- | --- |
-| M0 · Foundations (1–2 wk) | Monorepo, Expo app shell, tokens, fonts, Supabase projects, auth (anonymous), CI | App boots on both platforms, and tokens match the design screenshots |
-| M1 · Onboarding + billing (2–3 wk) | Screens 01–07, RevenueCat sandbox, entitlement webhook | Can subscribe and restore on TestFlight and the Play internal track |
-| M2 · Phase 1 connectors (3–4 wk) | Bluesky, YouTube, Mastodon, RSS; following list; people grouping; Threads/X if approved and costed | Real accounts selectable on screen 05 |
-| M3 · Pass pipeline + AI (3 wk) | Cron and queues, rules, provider adapters, batch, eval harness, decision log | Briefing ready at window time for 50 dogfood users; eval gate green |
-| M4 · Reading experience (2–3 wk) | 2a–2d, Adjust, Keep, time limit and lock, offline cache, Settings | Full loop on device, and the lock survives reinstall |
-| M5 · Beta (2 wk) | Sentry, PostHog, privacy labels, export and delete, store listing | TestFlight external and Play closed testing |
-| Phase 2 (after legal review) | On-device reader for Instagram, then TikTok and Facebook; remote extractors; on-phone AI module | Per-platform success rate ≥ 95% over 2 weeks |
+| M0 · Foundations (1–2 wk) | Monorepo, Expo app shell, tokens, fonts, Supabase projects (US region), CI | App boots on both platforms, and tokens match the design screenshots |
+| M1 · Sign-in + onboarding + billing (2–3 wk) | Screens 01–07 including the new sign-in screen (02b); Apple, Google and email-code auth; RevenueCat sandbox with no trial; entitlement webhook | Can sign in, subscribe and restore on TestFlight and the Play internal track |
+| M2 · Phase 1 connectors (3–4 wk) | Bluesky, YouTube, Mastodon, RSS; following list; people grouping. In parallel: file the Threads app review and cost the X API | Real accounts selectable on screen 05, and a go/no-go on Threads and X |
+| M3 · Pass pipeline + AI (3 wk) | Cron (5 am / 5 pm lead) and queues, rules, provider adapters, batch, eval harness, **Haiku vs Opus eval**, decision log | Briefing ready at 6:00 for 50 dogfood users, the eval gate is green, and the model decision is recorded |
+| M4 · Reading experience (2–3 wk) | 2a–2d, Adjust, Keep with full-post snapshot and media copy, time limit and lock, offline cache, Settings, Kept archive | Full loop on device, the lock survives reinstall, and kept posts survive deletion of the original |
+| M5 · Beta + launch (2 wk) | Sentry, PostHog, privacy labels, CCPA export and delete, age gate, US store listings | TestFlight external and Play closed testing, then US launch |
+| Post-launch | Threads/X if they weren't ready, the Phase 2 on-device reader (after legal review), on-phone AI module | — |
 
 ---
 
@@ -380,34 +409,49 @@ Takeaways:
 
 | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- |
-| The platforms users care most about (Instagram, TikTok, Facebook) aren't in Phase 1 | High | High | Be honest in onboarding copy, prioritise Phase 2, and test demand with a waitlist |
+| The platforms users care most about (Instagram, TikTok, Facebook) aren't at launch | High | High | Honest "Coming later" rows on screen 04, a waitlist per platform to measure demand, and Phase 2 prioritised by that data |
 | Phase 2 terms-of-service enforcement or app-review rejection | Medium | High | Legal review, profile-only reading, a kill switch, and disclosure |
 | X API pricing makes X uneconomic | High | Medium | Cost it first, or make X an add-on |
 | Threads API doesn't expose the following list | Medium | Medium | Let the user type handles |
-| iOS background limits delay Phase 2 briefings | High | Medium | Collect on open, with a designed loading state |
-| LLM cost exceeds margin | Low–Med | Medium | Batch, caching, text-only input, a cheaper model after the eval |
-| LLM false drops (a missed post from Mom) | Medium | High (trust) | Deterministic rules first, the LLM only drops on high confidence, and a visible decision log |
+| Fixed 6 am / 6 pm windows create load spikes per time zone | High | Low | Queue-based workers, a 60-min lead, and batch API headroom |
+| No push means users forget the app exists | Medium | Medium | Accepted by design. Measure subscription retention, not opens. |
+| LLM cost exceeds margin | Low–Med | Medium | Batch, caching, text-only input, Haiku eval |
+| LLM false drops (a missed post from Mom) | Medium | High (trust) | Deterministic rules first, the LLM only drops on high confidence, a visible decision log, and a ≤ 0.5% false-drop gate |
+| Storage of kept media grows unbounded | Low | Low | Per-user 2 GB cap and a video size cap |
 
 ---
 
-## 19. Open questions for you
+## 19. Decisions log and remaining questions
 
-1. **Launch platforms.** Given §6, is a Phase 1 launch without Instagram, TikTok and Facebook acceptable, or should Phase 2 (with its risk) be part of v1?
-2. **Accounts.** Is an anonymous start with an optional Apple or Google link at Subscribe acceptable, or do you want an explicit sign-in screen?
-3. **Trial.** Should there be a free trial (for example 7 days) or none? The "price before asked" principle suggests an honest paywall, and a trial changes the screen 03 copy.
-4. **Notifications.** Should there be no push at all, or one opt-in "Your 6:00 pm briefing is ready"? The design principles lean towards none.
-5. **Window times.** Screen 06 says 6:00 am and 6:00 pm, but screen 07 says 8:00 am and 6:00 pm for "Twice a day". Which is right, and can users pick custom times?
-6. **Default cloud model and cost ceiling.** The spec defaults to `claude-opus-5-5` at low effort. Do you want us to evaluate `claude-haiku-4-5` for cost, and what monthly LLM cost per user is acceptable?
-7. **Regions.** US-only at launch, or EU too (GDPR, data residency and EU LLM endpoints)?
-8. **Kept posts.** Should Keep store the full post in our database, or only a link?
+Decided 2026-09-29:
+
+| Question | Decision |
+| --- | --- |
+| Launch platforms | Phase 1 only (official or open APIs) |
+| Accounts | Explicit sign-in screen: Apple, Google, email code |
+| Trial | None |
+| Notifications | No push |
+| Window times | 6:00 am and 6:00 pm, fixed |
+| Model | Test `claude-haiku-4-5` against `claude-opus-5-5`; adopt whichever passes the eval gate at lower cost |
+| Market | US only |
+| Keep | Full post snapshot, including media copies |
+
+Still open (I made an assumption for each; they don't block M0 or M1):
+
+1. **The daily limit is shared by both windows.** A 20-minute limit means 20 minutes a day in total, not per briefing. Confirm.
+2. **Minimum age is 13+.** Or 17+/18+ if you'd rather avoid COPPA questions entirely.
+3. **Email sign-in** uses a one-time code rather than a magic link. It works better on mobile.
+4. **Kept storage caps** are 2 GB per user and 100 MB per video. Adjust if you like.
 
 ---
 
-## 20. Design issues found while specifying
+## 20. Design work needed
 
-* Screen 04 lists **Snapchat**, which we can't support. Instagram, TikTok and Facebook should read "Coming soon" in Phase 1.
+* **New screen, 02b Sign in:** Apple, Google and email code, in the Retainer style. It sits between "Why we charge" and "Subscribe".
+* Screen 04: remove Snapchat. Instagram, TikTok and Facebook become "Coming later" rows (optionally with "Tell me when it's ready", which records interest without email or push).
 * Screen 06b, on-phone option: "No post, name or account is sent anywhere" isn't true for server-fetched platforms. Suggested copy: "Posts are sorted on this phone. Retainer's servers still collect them from Bluesky, YouTube and others."
-* The screen 06 times conflict with screen 07 (Q5).
+* Screen 07: "Twice a day" should read **6:00 am · 6:00 pm** (it currently says 8:00 am).
 * Screen 2b's post order is newest first, but the Retainer Space spec says "time order". Pick one.
-* Screen 03 has no terms or privacy links (App Store requirement), and it doesn't mention auto-renewal.
-* There's no design yet for: Settings, the decision log, the Kept archive, a connection that has failed or expired, the "preparing your briefing" state (Phase 2), an empty briefing ("None of your people posted"), and the lapsed-subscription state.
+* Screen 03 needs terms and privacy links and the auto-renew disclosure. There's no trial wording to add.
+* Screen 2d: with no push, the closed screen should always show the next time, not only on pull-down.
+* Not yet designed: Settings, the decision log, the Kept archive (including "video too large to save"), a connection that has failed or expired, an empty briefing ("None of your people posted"), the lapsed-subscription state, and the age gate.
