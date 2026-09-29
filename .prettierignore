@@ -1,0 +1,7 @@
+design/
+pnpm-lock.yaml
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/expo-env.d.ts
+supabase/.temp/
+packages/shared/src/tokens.ts

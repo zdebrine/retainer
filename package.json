@@ -1,0 +1,20 @@
+{
+  "name": "retainer",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "tokens": "node scripts/gen-tokens.mjs",
+    "tokens:check": "node scripts/gen-tokens.mjs --check",
+    "typecheck": "pnpm -r --parallel run typecheck",
+    "lint": "pnpm -r --parallel run lint",
+    "test": "pnpm -r run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
+  }
+}
