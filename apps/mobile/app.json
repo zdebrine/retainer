@@ -10,7 +10,10 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "app.retainer.people",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -60,6 +63,15 @@
     "backgroundColor": "#06080a",
     "runtimeVersion": {
       "policy": "fingerprint"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "72ae51c2-4a2f-42d8-b460-28cc47cc2b6c"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/72ae51c2-4a2f-42d8-b460-28cc47cc2b6c"
     }
   }
 }
