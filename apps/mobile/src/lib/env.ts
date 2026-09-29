@@ -6,4 +6,6 @@ export const env = {
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
   revenueCatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
   revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
+  /** Set once the youtube-lookup function has its YOUTUBE_API_KEY secret. */
+  youtubeEnabled: process.env.EXPO_PUBLIC_YOUTUBE_ENABLED === 'true',
 };

@@ -15,11 +15,13 @@ import { Text } from '@/components/text';
 import { useAuth } from '@/features/auth/auth-provider';
 import { updateProfile } from '@/features/auth/profile';
 import { DAILY_LIMITS, WINDOWS, ruleSummary, useOnboarding } from '@/features/onboarding/store';
+import { useSources } from '@/features/sources/store';
 
 // Wireframe 07 · Daily limit. The last onboarding step saves every choice to the profile.
 export default function Time() {
   const { session, refreshProfile } = useAuth();
   const { aiProvider, dailyLimit, windowMode, setDailyLimit, setWindowMode } = useOnboarding();
+  const peopleCount = useSources((s) => s.people.length);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -48,7 +50,17 @@ export default function Time() {
     <OnboardingScreen
       footer={
         <>
-          <Button label="Finish setup" kind="fill" block disabled={busy} onPress={finish} />
+          <Button
+            label={
+              peopleCount
+                ? `Start with ${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}`
+                : 'Finish setup'
+            }
+            kind="fill"
+            block
+            disabled={busy}
+            onPress={finish}
+          />
           {message ? (
             <Text
               variant="caption"
