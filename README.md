@@ -43,5 +43,14 @@ theme in the People wireframe. After re-importing the design system from Claude 
 ## Supabase
 
 `supabase/config.toml` and `supabase/migrations/` are the source of truth. Local stack:
-`npx supabase start` (needs Docker). Hosted projects (dev, staging, prod, US East) are
-linked with `npx supabase link --project-ref <ref>`.
+`npx supabase start` (needs Docker).
+
+| Environment | Project                              | Ref                    | Region    |
+| ----------- | ------------------------------------ | ---------------------- | --------- |
+| dev         | retainer-dev                         | `ilxxsqpevooclmpazydx` | us-east-1 |
+| staging     | not created yet (needs the Pro plan) |                        |           |
+| prod        | not created yet (needs the Pro plan) |                        |           |
+
+Link with `npx supabase link --project-ref <ref>`, then `npx supabase db push` to apply new
+migrations. The app reads `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+from `apps/mobile/.env.development`.
