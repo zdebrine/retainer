@@ -1,0 +1,20 @@
+/* Eight styles. Five sans the person reads, three mono for the HUD. */
+:root{
+--display-size:48px;--display-line:52px;--display-weight:700;--display-tracking:-0.03em;
+--title-size:24px;--title-line:30px;--title-weight:600;--title-tracking:-0.02em;
+--body-size:15px;--body-line:23px;--body-weight:400;--body-tracking:0;
+--ui-size:14px;--ui-line:20px;--ui-weight:500;--ui-tracking:0;
+--caption-size:13px;--caption-line:18px;--caption-weight:400;--caption-tracking:0;
+--micro-size:11px;--micro-line:14px;--micro-weight:500;--micro-tracking:0.14em;
+--data-size:13px;--data-line:18px;--data-weight:400;--data-tracking:0;
+--data-lg-size:32px;--data-lg-line:36px;--data-lg-weight:500;--data-lg-tracking:-0.02em;
+
+--text-display:var(--display-weight) var(--display-size)/var(--display-line) var(--font-sans);
+--text-title:var(--title-weight) var(--title-size)/var(--title-line) var(--font-sans);
+--text-body:var(--body-weight) var(--body-size)/var(--body-line) var(--font-sans);
+--text-ui:var(--ui-weight) var(--ui-size)/var(--ui-line) var(--font-sans);
+--text-caption:var(--caption-weight) var(--caption-size)/var(--caption-line) var(--font-sans);
+--text-micro:var(--micro-weight) var(--micro-size)/var(--micro-line) var(--font-mono);
+--text-data:var(--data-weight) var(--data-size)/var(--data-line) var(--font-mono);
+--text-data-lg:var(--data-lg-weight) var(--data-lg-size)/var(--data-lg-line) var(--font-mono);
+}

@@ -1,0 +1,11 @@
+/* Edges are the language. Nothing animates while idle. */
+:root{
+--duration-edge:500ms; /* @kind other */
+--duration-edge-min:400ms; /* @kind other */
+--duration-edge-max:600ms; /* @kind other */
+--duration-camera:700ms; /* @kind other */
+--duration-breathe:2400ms; /* @kind other */
+--ease-camera:cubic-bezier(.22,.61,.36,1); /* @kind other */
+--ease-edge:cubic-bezier(.4,0,.2,1); /* @kind other */
+}
+@keyframes rt-breathe{0%,100%{opacity:1}50%{opacity:.62}}

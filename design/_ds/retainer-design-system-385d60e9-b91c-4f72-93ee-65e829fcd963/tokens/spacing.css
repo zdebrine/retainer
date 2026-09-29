@@ -1,0 +1,15 @@
+:root{
+--space-1:4px;
+--space-2:8px;
+--space-3:12px;
+--space-4:16px;
+--space-5:24px;
+--space-6:32px;
+--space-7:48px;
+--space-8:96px;
+--panel-padding-phone:var(--space-4);
+--panel-padding-desktop:var(--space-5);
+--panel-section-gap:var(--space-6);
+--hud-inset:var(--space-7);
+--panel-width:360px;
+}

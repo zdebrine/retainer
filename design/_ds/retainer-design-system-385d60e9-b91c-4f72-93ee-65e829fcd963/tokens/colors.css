@@ -1,0 +1,44 @@
+/* Near-black everywhere. Three hues, one white, one fault. */
+:root{
+--void:#06080a;
+--deep:#0b0e11;
+--panel:#10141a;
+--hairline:#1e242b;
+--ink:#eef0f2;
+--dim:#8b929c;
+--faint:#4c535c;
+--money:#5ee0b7;
+--people:#f2a86b;
+--attention:#9d8cff;
+--lit:#ffffff;
+--fault:#ff7a66;
+
+/* semantic aliases */
+--surface-space:var(--void);
+--surface-recessed:var(--deep);
+--surface-panel:var(--panel);
+--border-hairline:var(--hairline);
+--text-primary:var(--ink);
+--text-secondary:var(--dim);
+--text-tertiary:var(--faint);
+--cluster-money:var(--money);
+--cluster-people:var(--people);
+--cluster-attention:var(--attention);
+--state-needs-you:var(--lit);
+--state-fault:var(--fault);
+--edge-cross-cluster:var(--dim);
+--edge-rule:var(--ink);
+
+/* edge opacities: inside a cluster, by depth */
+--edge-near:0.5; /* @kind other */
+--edge-mid:0.35; /* @kind other */
+--edge-far:0.25; /* @kind other */
+--edge-rule-opacity:0.5; /* @kind other */
+
+/* node plane opacity + blur */
+--plane-far-opacity:0.4; /* @kind other */
+--plane-mid-opacity:0.65; /* @kind other */
+--plane-near-opacity:1; /* @kind other */
+--plane-far-blur:2px;
+--plane-mid-blur:0.8px;
+}

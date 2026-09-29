@@ -1,0 +1,7 @@
+/* No drop shadows. Depth is size, opacity and blur. Glow is the only effect, and it belongs to nodes. */
+:root{
+--glow-money:0 0 24px rgba(94,224,183,0.45);
+--glow-people:0 0 24px rgba(242,168,107,0.45);
+--glow-attention:0 0 24px rgba(157,140,255,0.45);
+--glow-lit:0 0 40px rgba(255,255,255,0.55), 0 0 90px rgba(255,255,255,0.25);
+}

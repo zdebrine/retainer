@@ -1,0 +1,4 @@
+/* Retainer webfonts. Manrope for anything the person reads; JetBrains Mono for the HUD.
+   No font binaries were supplied with the source kit; both families are served from Google Fonts. */
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+:root{--font-sans:Manrope,system-ui,-apple-system,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
