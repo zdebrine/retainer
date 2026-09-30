@@ -247,10 +247,15 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
-# Email sign-in sends a 6-digit code, not a link (sign-in screen 02b).
+# Email sign-in sends a 6-digit code, not a link (sign-in screen 02b). A new address gets the
+# confirmation email, a returning one the magic-link email; both carry the code.
 [auth.email.template.magic_link]
 subject = "Your Retainer code"
 content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Your Retainer code"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
