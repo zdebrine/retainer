@@ -15,7 +15,9 @@ import {
   sendEmailCode,
   signInWithApple,
   signInWithGoogle,
+  parseEmailLink,
   verifyEmailCode,
+  verifyEmailLink,
   type SignInResult,
 } from '@/features/auth/sign-in';
 import { hasActiveEntitlement } from '@/features/billing/purchases';
@@ -74,6 +76,7 @@ export default function SignIn() {
   }
 
   const locked = !ageOk || busy;
+  const isLink = /^https?:\/\//i.test(code);
 
   return (
     <OnboardingScreen>
@@ -141,12 +144,15 @@ export default function SignIn() {
         ) : (
           <>
             <Text variant="caption" tone="dim">
-              A 6-digit code was sent to {email.trim()}.
+              A sign-in email was sent to {email.trim()}. Enter its 6-digit code, or paste its link.
             </Text>
             <TextField
-              mono
+              mono={!isLink}
               value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+              // A pasted link is kept whole; anything else is treated as the code.
+              onChangeText={(t) =>
+                setCode(/^\s*https?:\/\//i.test(t) ? t.trim() : t.replace(/\D/g, '').slice(0, 6))
+              }
               placeholder="000000"
               keyboardType="number-pad"
               autoComplete="one-time-code"
@@ -157,8 +163,10 @@ export default function SignIn() {
             <Button
               label="Sign in"
               kind="fill"
-              disabled={locked || code.length !== 6}
-              onPress={() => run(() => verifyEmailCode(email, code))}
+              disabled={locked || (isLink ? !parseEmailLink(code) : code.length !== 6)}
+              onPress={() =>
+                run(() => (isLink ? verifyEmailLink(code) : verifyEmailCode(email, code)))
+              }
             />
             <Button
               label="Use a different email"

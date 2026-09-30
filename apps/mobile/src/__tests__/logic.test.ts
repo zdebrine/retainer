@@ -1,4 +1,10 @@
-import { isValidEmail, sendEmailCode, verifyEmailCode } from '@/features/auth/sign-in';
+import {
+  isValidEmail,
+  parseEmailLink,
+  sendEmailCode,
+  verifyEmailCode,
+  verifyEmailLink,
+} from '@/features/auth/sign-in';
 import { isEntitled, purchasesConfigured } from '@/features/billing/purchases';
 import { nextStep } from '@/features/flow';
 import { agentCta, agentSees, ruleSummary } from '@/features/onboarding/store';
@@ -111,5 +117,57 @@ describe('purchases', () => {
   it('checks the retainer entitlement', () => {
     expect(isEntitled({ entitlements: { active: { retainer: {} } } } as never)).toBe(true);
     expect(isEntitled({ entitlements: { active: { other: {} } } } as never)).toBe(false);
+  });
+});
+
+describe('email sign-in links', () => {
+  const verify =
+    'https://ilxxsqpevooclmpazydx.supabase.co/auth/v1/verify?token=abc123hash&type=magiclink&redirect_to=http://localhost:3000';
+
+  it('reads the token from the email link', () => {
+    expect(parseEmailLink(verify)).toEqual({
+      kind: 'token_hash',
+      tokenHash: 'abc123hash',
+      type: 'magiclink',
+    });
+    expect(parseEmailLink(verify.replace('magiclink', 'signup'))).toMatchObject({ type: 'signup' });
+  });
+
+  it('reads the session from the page the link redirected to', () => {
+    expect(
+      parseEmailLink(
+        'http://localhost:3000/#access_token=at&expires_in=3600&refresh_token=rt&token_type=bearer&type=magiclink',
+      ),
+    ).toEqual({ kind: 'session', accessToken: 'at', refreshToken: 'rt' });
+  });
+
+  it('rejects anything else', () => {
+    expect(parseEmailLink('123456')).toBeNull();
+    expect(parseEmailLink('https://example.com/?token=x')).toBeNull();
+  });
+
+  it('signs in with either shape', async () => {
+    await expect(verifyEmailLink(` ${verify} `)).resolves.toEqual({ ok: true });
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'abc123hash',
+      type: 'magiclink',
+    });
+    await expect(
+      verifyEmailLink('http://localhost:3000/#access_token=at&refresh_token=rt'),
+    ).resolves.toEqual({ ok: true });
+    expect(supabase.auth.setSession).toHaveBeenCalledWith({
+      access_token: 'at',
+      refresh_token: 'rt',
+    });
+  });
+
+  it('explains a used or expired link', async () => {
+    jest
+      .mocked(supabase.auth.verifyOtp)
+      .mockResolvedValueOnce({ error: { message: 'expired' } } as never);
+    await expect(verifyEmailLink(verify)).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/expired or was already used/),
+    });
   });
 });

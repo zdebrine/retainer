@@ -38,6 +38,51 @@ export async function verifyEmailCode(email: string, code: string): Promise<Sign
   return error ? failed('That code did not work. Check it, or send a new one.') : { ok: true };
 }
 
+/**
+ * What a pasted sign-in link carries. Until the email templates send a code (which needs custom
+ * SMTP), Supabase emails a link instead. Two shapes are accepted:
+ * - the link in the email: .../auth/v1/verify?token=<hash>&type=magiclink|signup
+ * - the page it redirects to: ...#access_token=...&refresh_token=...
+ */
+export type EmailLink =
+  | { kind: 'token_hash'; tokenHash: string; type: 'magiclink' | 'signup' | 'email' }
+  | { kind: 'session'; accessToken: string; refreshToken: string };
+
+export function parseEmailLink(text: string): EmailLink | null {
+  let url: URL;
+  try {
+    url = new URL(text.trim());
+  } catch {
+    return null;
+  }
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const accessToken = hash.get('access_token');
+  const refreshToken = hash.get('refresh_token');
+  if (accessToken && refreshToken) return { kind: 'session', accessToken, refreshToken };
+
+  const token = url.searchParams.get('token');
+  if (!url.pathname.endsWith('/auth/v1/verify') || !token) return null;
+  const t = url.searchParams.get('type');
+  const type = t === 'signup' || t === 'magiclink' ? t : 'email';
+  return { kind: 'token_hash', tokenHash: token, type };
+}
+
+export async function verifyEmailLink(text: string): Promise<SignInResult> {
+  const link = parseEmailLink(text);
+  if (!link)
+    return failed('That is not a Retainer sign-in link. Paste the whole link from the email.');
+  const { error } =
+    link.kind === 'session'
+      ? await supabase.auth.setSession({
+          access_token: link.accessToken,
+          refresh_token: link.refreshToken,
+        })
+      : await supabase.auth.verifyOtp({ token_hash: link.tokenHash, type: link.type });
+  return error
+    ? failed('That link has expired or was already used. Send a new one.')
+    : { ok: true };
+}
+
 // ─── Sign in with Apple (iOS) ────────────────────────────────────────────────
 
 export async function isAppleSignInAvailable(): Promise<boolean> {

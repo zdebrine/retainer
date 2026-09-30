@@ -65,7 +65,7 @@ describe('Sign in', () => {
     await user.type(screen.getByLabelText('Email'), 'dana@example.com');
     await user.press(screen.getByRole('button', { name: 'Email me a code' }));
     expect(
-      await screen.findByText('A 6-digit code was sent to dana@example.com.'),
+      await screen.findByText(/A sign-in email was sent to dana@example.com/),
     ).toBeOnTheScreen();
     await user.type(screen.getByLabelText('Code'), '12a3456');
     await user.press(screen.getByRole('button', { name: 'Sign in' }));
@@ -121,5 +121,24 @@ describe('Time', () => {
       tz: expect.any(String),
       onboarded_at: expect.any(String),
     });
+  });
+});
+
+describe('Sign in with a pasted link', () => {
+  it('accepts the link from the email in the code field', async () => {
+    jest.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user: { id: 'u1' } } } as never);
+    const user = userEvent.setup();
+    await render(wrap(<SignIn />));
+    await user.press(screen.getByRole('switch', { name: "I'm 13 or older" }));
+    await user.type(screen.getByLabelText('Email'), 'dana@example.com');
+    await user.press(screen.getByRole('button', { name: 'Email me a code' }));
+    await screen.findByText(/A sign-in email was sent/);
+    await user.paste(
+      screen.getByLabelText('Code'),
+      'https://ref.supabase.co/auth/v1/verify?token=hash1&type=signup&redirect_to=http://localhost:3000',
+    );
+    await user.press(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/subscribe'));
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash1', type: 'signup' });
   });
 });
